@@ -210,8 +210,8 @@ const AIChatScreen = ({ navigation }: any) => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+  </View>
+);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -303,6 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    marginTop: 30,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',

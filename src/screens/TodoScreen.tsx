@@ -1,148 +1,306 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  TextInput, 
   FlatList, 
   SafeAreaView,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Modal,
-  ScrollView
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-
-interface Todo {
-  id: string;
-  text: string;
-  completed: boolean;
-  createdAt: Date;
-  dueDate?: Date;
-  dueTime?: string;
-}
+import TodoService, { Todo, TodoFilters, TodoStats } from '../services/TodoService';
+import TodoForm from '../components/TodoForm';
+import TodoItem from '../components/TodoItem';
+import TodoFiltersComponent from '../components/TodoFilters';
+import { useAuth } from '../context/AuthContext';
 
 const TodoScreen = ({ navigation }: any) => {
+  const { isAuthenticated } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [stats, setStats] = useState<TodoStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [inputText, setInputText] = useState('');
-  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
-  const [dueTime, setDueTime] = useState('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [filters, setFilters] = useState<TodoFilters>({
+    page: 1,
+    limit: 10,
+    status: 'all',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  });
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const addTodo = () => {
-    if (inputText.trim().length === 0) {
-      Alert.alert('Error', 'Please enter a todo item');
-      return;
+  // Load todos from API
+  const loadTodos = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+        setFilters(prev => ({ ...prev, page: 1 }));
+      } else if (filters.page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await TodoService.getTodos(filters);
+      
+      console.log('TodoScreen - Response:', response);
+      console.log('TodoScreen - Response data:', response.data);
+      console.log('TodoScreen - Response data type:', typeof response.data);
+      console.log('TodoScreen - Is array:', Array.isArray(response.data));
+      
+      if (response.success && response.data) {
+        let todoData: Todo[] = [];
+        
+        // Handle different response formats
+        if (Array.isArray(response.data)) {
+          todoData = response.data;
+        } else if (response.data && typeof response.data === 'object') {
+          // If it's an object with a data property
+          const responseObj = response.data as any;
+          if (Array.isArray(responseObj.data)) {
+            todoData = responseObj.data;
+          } else if (Array.isArray(responseObj.todos)) {
+            todoData = responseObj.todos;
+          }
+        }
+        
+        console.log('TodoScreen - Todo data:', todoData);
+        console.log('TodoScreen - Todo data length:', todoData.length);
+        
+        if (filters.page === 1 || isRefresh) {
+          setTodos(todoData);
+        } else {
+          setTodos(prev => [...prev, ...todoData]);
+        }
+
+        // Check if there are more pages
+        if (response.totalPages && response.currentPage) {
+          setHasMore(response.currentPage < response.totalPages);
+        } else {
+          setHasMore(todoData.length === filters.limit);
+        }
+      } else {
+        Alert.alert('Error', response.message || 'Failed to load todos');
+      }
+    } catch (error: any) {
+      console.error('Error loading todos:', error);
+      Alert.alert('Error', error.message || 'Failed to load todos');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
     }
+  }, [filters]);
 
-    const newTodo: Todo = {
-      id: Date.now().toString(),
-      text: inputText.trim(),
-      completed: false,
-      createdAt: new Date(),
-      dueDate: dueDate,
-      dueTime: dueTime,
-    };
+  // Load stats from API
+  const loadStats = useCallback(async () => {
+    try {
+      const response = await TodoService.getTodoStats();
+      if (response.success && response.data) {
+        setStats(response.data as TodoStats);
+      }
+    } catch (error: any) {
+      console.error('Error loading stats:', error);
+    }
+  }, []);
 
-    setTodos([newTodo, ...todos]);
-    setInputText('');
-    setDueDate(undefined);
-    setDueTime('');
-    setModalVisible(false);
+  // Initial load
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTodos();
+      loadStats();
+    }
+  }, [isAuthenticated]);
+
+  // Reload when filters change
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTodos();
+    }
+  }, [filters]);
+
+  // Debug: Log when todos change
+  useEffect(() => {
+    console.log('TodoScreen - Todos state changed:', todos);
+    console.log('TodoScreen - Todos length:', todos.length);
+  }, [todos]);
+
+  // Handle refresh
+  const onRefresh = useCallback(() => {
+    loadTodos(true);
+    loadStats();
+  }, [loadTodos, loadStats]);
+
+  // Load more todos
+  const loadMore = useCallback(() => {
+    if (hasMore && !loadingMore) {
+      setFilters(prev => ({ ...prev, page: (prev.page || 1) + 1 }));
+    }
+  }, [hasMore, loadingMore]);
+
+  // Create new todo
+  const handleCreateTodo = async (todoData: Omit<Todo, '_id' | 'user' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const response = await TodoService.createTodo(todoData);
+      if (response.success) {
+        setModalVisible(false);
+        loadTodos(true); // Refresh the list
+        loadStats(); // Refresh stats
+        Alert.alert('Success', 'Task created successfully!');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to create task');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to create task');
+    }
   };
 
-  const toggleTodo = (id: string) => {
-    setTodos(todos.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
+  // Update todo
+  const handleUpdateTodo = async (todoData: Omit<Todo, '_id' | 'user' | 'createdAt' | 'updatedAt'>) => {
+    if (!editingTodo?._id) return;
+
+    try {
+      const response = await TodoService.updateTodo(editingTodo._id, todoData);
+      if (response.success) {
+        setModalVisible(false);
+        setEditingTodo(null);
+        loadTodos(true); // Refresh the list
+        loadStats(); // Refresh stats
+        Alert.alert('Success', 'Task updated successfully!');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to update task');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update task');
+    }
   };
 
-  const deleteTodo = (id: string) => {
+  // Toggle todo completion
+  const handleToggleTodo = async (id: string) => {
+    try {
+      const response = await TodoService.toggleTodoStatus(id);
+      if (response.success) {
+        // Update local state immediately for better UX
+        setTodos(prev => 
+          prev.map(todo => 
+            todo._id === id 
+              ? { ...todo, completed: !todo.completed }
+              : todo
+          )
+        );
+        loadStats(); // Refresh stats
+      } else {
+        Alert.alert('Error', response.message || 'Failed to update task');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update task');
+    }
+  };
+
+  // Delete todo
+  const handleDeleteTodo = async (id: string) => {
     Alert.alert(
-      'Delete Todo',
-      'Are you sure you want to delete this todo?',
+      'Delete Task',
+      'Are you sure you want to delete this task?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => setTodos(todos.filter(todo => todo.id !== id))
+          onPress: async () => {
+            try {
+              const response = await TodoService.deleteTodo(id);
+              if (response.success) {
+                setTodos(prev => prev.filter(todo => todo._id !== id));
+                loadStats(); // Refresh stats
+                Alert.alert('Success', 'Task deleted successfully!');
+              } else {
+                Alert.alert('Error', response.message || 'Failed to delete task');
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to delete task');
+            }
+          }
         },
       ]
     );
   };
 
-  const getFilteredTodos = () => {
-    switch (filter) {
-      case 'active':
-        return todos.filter(todo => !todo.completed);
-      case 'completed':
-        return todos.filter(todo => todo.completed);
-      default:
-        return todos;
-    }
+  // Edit todo
+  const handleEditTodo = (todo: Todo) => {
+    setEditingTodo(todo);
+    setModalVisible(true);
   };
 
-  const getStats = () => {
-    const total = todos.length;
-    const completed = todos.filter(todo => todo.completed).length;
-    const active = total - completed;
-    return { total, completed, active };
+  // Handle filters change
+  const handleFiltersChange = (newFilters: TodoFilters) => {
+    setFilters(newFilters);
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  // Render todo item
+  const renderTodo = ({ item }: { item: Todo }) => {
+    console.log('TodoScreen - Rendering todo item:', item);
+    return (
+      <TodoItem
+        todo={item}
+        onToggle={handleToggleTodo}
+        onDelete={handleDeleteTodo}
+        onEdit={handleEditTodo}
+      />
+    );
   };
 
-  const stats = getStats();
+  // Render loading footer
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color="#007bff" />
+        <Text style={styles.loadingText}>Loading more...</Text>
+      </View>
+    );
+  };
 
-  const renderTodo = ({ item }: { item: Todo }) => (
-    <View style={[styles.todoItem, item.completed && styles.todoItemCompleted]}>
-      <TouchableOpacity 
-        style={styles.todoContent}
-        onPress={() => toggleTodo(item.id)}
-      >
-        <View style={[styles.checkbox, item.completed && styles.checkboxCompleted]}>
-          {item.completed && (
-            <Ionicons name="checkmark" size={16} color="#fff" />
-          )}
-        </View>
-        <View style={styles.todoTextContainer}>
-          <Text style={[styles.todoText, item.completed && styles.todoTextCompleted]}>
-            {item.text}
-          </Text>
-          {(item.dueDate || item.dueTime) && (
-            <View style={styles.todoMeta}>
-              {item.dueDate && (
-                <Text style={styles.todoMetaText}>
-                  📅 {formatDate(item.dueDate)}
-                </Text>
-              )}
-              {item.dueTime && (
-                <Text style={styles.todoMetaText}>
-                  ⏰ {item.dueTime}
-                </Text>
-              )}
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={() => deleteTodo(item.id)}
-      >
-        <Ionicons name="trash-outline" size={20} color="#ff4757" />
-      </TouchableOpacity>
+  // Render empty state
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="list-outline" size={64} color="#ddd" />
+      <Text style={styles.emptyText}>No tasks found</Text>
+      <Text style={styles.emptySubtext}>
+        {filters.search 
+          ? 'Try adjusting your search criteria'
+          : 'Add a new task to get started'
+        }
+      </Text>
+      {!filters.search && (
+        <TouchableOpacity 
+          style={styles.addFirstTaskButton}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.addFirstTaskButtonText}>Add Your First Task</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
+
+  if (loading && todos.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text style={styles.loadingText}>Loading tasks...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -161,135 +319,71 @@ const TodoScreen = ({ navigation }: any) => {
           <Text style={styles.headerTitle}>My Tasks</Text>
           <TouchableOpacity 
             style={styles.addButtonTop}
-            onPress={() => setModalVisible(true)}
+            onPress={() => {
+              setEditingTodo(null);
+              setModalVisible(true);
+            }}
           >
             <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
 
         {/* Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.total}</Text>
-            <Text style={styles.statLabel}>Total</Text>
+        {stats && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.total}</Text>
+              <Text style={styles.statLabel}>Total</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.active}</Text>
+              <Text style={styles.statLabel}>Active</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{stats.completed}</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+            </View>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.active}</Text>
-            <Text style={styles.statLabel}>Active</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{stats.completed}</Text>
-            <Text style={styles.statLabel}>Completed</Text>
-          </View>
-        </View>
+        )}
 
-        {/* Filter Tabs */}
-        <View style={styles.filterContainer}>
-          <TouchableOpacity 
-            style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
-            onPress={() => setFilter('all')}
-          >
-            <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
-              All
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterTab, filter === 'active' && styles.filterTabActive]}
-            onPress={() => setFilter('active')}
-          >
-            <Text style={[styles.filterText, filter === 'active' && styles.filterTextActive]}>
-              Active
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterTab, filter === 'completed' && styles.filterTabActive]}
-            onPress={() => setFilter('completed')}
-          >
-            <Text style={[styles.filterText, filter === 'completed' && styles.filterTextActive]}>
-              Completed
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Filters */}
+        <TodoFiltersComponent 
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+        />
 
         {/* Todo List */}
         <FlatList
-          data={getFilteredTodos()}
+          data={todos}
           renderItem={renderTodo}
-          keyExtractor={item => item.id}
+          keyExtractor={item => item._id!}
           style={styles.todoList}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="list-outline" size={64} color="#ddd" />
-              <Text style={styles.emptyText}>No tasks yet</Text>
-              <Text style={styles.emptySubtext}>Add a new task to get started</Text>
-            </View>
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#007bff']}
+              tintColor="#007bff"
+            />
           }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.1}
+          ListFooterComponent={renderFooter}
+          ListEmptyComponent={renderEmpty}
         />
 
-        {/* Add Todo Modal */}
-        <Modal
-          animationType="slide"
-          transparent={true}
+        {/* Todo Form Modal */}
+        <TodoForm
           visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add New Task</Text>
-                <TouchableOpacity 
-                  style={styles.closeButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Ionicons name="close" size={24} color="#333" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.modalBody}>
-                <Text style={styles.inputLabel}>Task Description</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="Enter task description..."
-                  value={inputText}
-                  onChangeText={setInputText}
-                  multiline
-                  numberOfLines={3}
-                />
-
-                <Text style={styles.inputLabel}>Due Date (Optional)</Text>
-                <TouchableOpacity 
-                  style={styles.dateTimeButton}
-                  onPress={() => {
-                    // For now, we'll set a default date
-                    // In a real app, you'd use a date picker
-                    setDueDate(new Date(Date.now() + 24 * 60 * 60 * 1000)); // Tomorrow
-                  }}
-                >
-                  <Ionicons name="calendar-outline" size={20} color="#007bff" />
-                  <Text style={styles.dateTimeButtonText}>
-                    {dueDate ? formatDate(dueDate) : 'Select Date'}
-                  </Text>
-                </TouchableOpacity>
-
-                <Text style={styles.inputLabel}>Due Time (Optional)</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g., 14:30 or 2:30 PM"
-                  value={dueTime}
-                  onChangeText={setDueTime}
-                />
-
-                <TouchableOpacity 
-                  style={styles.addTaskButton}
-                  onPress={addTodo}
-                >
-                  <Text style={styles.addTaskButtonText}>Add Task</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
+          onClose={() => {
+            setModalVisible(false);
+            setEditingTodo(null);
+          }}
+          onSubmit={editingTodo ? handleUpdateTodo : handleCreateTodo}
+          initialData={editingTodo || undefined}
+          isEditing={!!editingTodo}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -306,6 +400,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    marginTop: 30,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
@@ -356,111 +451,26 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     marginTop: 4,
   },
-  filterContainer: {
-    flexDirection: 'row',
-    marginHorizontal: 20,
-    marginTop: 20,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  filterTab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  filterTabActive: {
-    backgroundColor: '#007bff',
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6c757d',
-  },
-  filterTextActive: {
-    color: '#fff',
-  },
   todoList: {
     flex: 1,
     marginTop: 20,
     paddingHorizontal: 20,
   },
-  todoItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  todoItemCompleted: {
-    opacity: 0.7,
-  },
-  todoContent: {
+  loadingContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#dee2e6',
-    marginRight: 12,
+  loadingFooter: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
-  },
-  checkboxCompleted: {
-    backgroundColor: '#28a745',
-    borderColor: '#28a745',
-  },
-  todoTextContainer: {
-    flex: 1,
-  },
-  todoText: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 4,
-  },
-  todoTextCompleted: {
-    textDecorationLine: 'line-through',
-    color: '#6c757d',
-  },
-  todoMeta: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    paddingVertical: 20,
     gap: 8,
   },
-  todoMetaText: {
-    fontSize: 12,
+  loadingText: {
+    fontSize: 14,
     color: '#6c757d',
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  deleteButton: {
-    padding: 8,
-    marginLeft: 8,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -477,77 +487,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#adb5bd',
     marginTop: 8,
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  modalBody: {
-    padding: 20,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  modalInput: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  dateTimeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  dateTimeButtonText: {
-    fontSize: 16,
-    color: '#333',
-    marginLeft: 8,
-  },
-  addTaskButton: {
+  addFirstTaskButton: {
     backgroundColor: '#007bff',
     borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
-  addTaskButtonText: {
+  addFirstTaskButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',

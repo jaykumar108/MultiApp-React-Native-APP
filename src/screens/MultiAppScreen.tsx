@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import AuthService from '../services/AuthService';
 
 interface MultiAppScreenProps {
   navigation: any;
@@ -54,13 +55,45 @@ const recentActivities = [
 ];
 
 const MultiAppScreen: React.FC<MultiAppScreenProps> = ({ navigation }) => {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const response = await AuthService.getProfile();
+        if (response.success && response.user) {
+          setUser(response.user);
+        } else {
+          Alert.alert('Error', response.message || 'Failed to fetch profile');
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to fetch profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#007bff" />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTextContainer}>
-            <Text style={styles.greeting}>Hello, Jay Sharma</Text>
+            <Text style={styles.greeting}>Hello, {user?.name || 'User'}</Text>
             <Text style={styles.subtitle}>Welcome to your Multi App Dashboard</Text>
             <Text style={styles.date}>{new Date().toLocaleDateString('en-US', { 
               weekday: 'long', 
@@ -71,7 +104,7 @@ const MultiAppScreen: React.FC<MultiAppScreenProps> = ({ navigation }) => {
           </View>
           <View style={styles.profileContainer}>
             <Image
-              source={{ uri: 'https://res.cloudinary.com/dzgr4iqt7/image/upload/v1752564843/attendance_system/ivkbqhwdxwlshvftvku7.png' }}
+              source={{ uri: user?.image || 'https://res.cloudinary.com/dzgr4iqt7/image/upload/v1752564843/attendance_system/ivkbqhwdxwlshvftvku7.png' }}
               style={styles.profileImage}
             />
             <View style={styles.onlineIndicator} />
@@ -170,6 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     backgroundColor: '#fff',
+    marginTop: 30,
     marginBottom: 16,
   },
   headerTextContainer: {

@@ -7,6 +7,7 @@ import CalculatorScreen from './CalculatorScreen';
 import TodoScreen from './TodoScreen';
 import ExpenseTrackerScreen from './ExpenseTrackerScreen';
 import ProfileScreen from './ProfileScreen';
+
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const Tab = createBottomTabNavigator();
@@ -33,6 +34,7 @@ const MainTabs = () => {
           else if (route.name === 'Calculator') iconName = 'calculator-outline';
           else if (route.name === 'Todo') iconName = 'list-outline';
           else if (route.name === 'Profile') iconName = 'person-outline';
+
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#007bff',
@@ -43,6 +45,7 @@ const MainTabs = () => {
       <Tab.Screen name="Todo" component={TodoScreen} />
       <Tab.Screen name="AI" component={AIChatScreen} />
       <Tab.Screen name="Calculator" component={CalculatorScreen} />
+
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

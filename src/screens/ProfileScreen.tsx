@@ -1,60 +1,173 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import AuthService from '../services/AuthService';
+import { useAuth } from '../context/AuthContext';
 
-const user = {
-  name: 'Jay Sharma',
-  email: 'jaysharma@gmail.com',
-  image: 'https://res.cloudinary.com/dzgr4iqt7/image/upload/v1752564843/attendance_system/ivkbqhwdxwlshvftvku7.png',
-};
+const ProfileScreen = ({ navigation }: any) => {
+  const { logout } = useAuth();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-const menu = [
-  { label: 'Edit Profile', icon: 'pencil-outline', onPress: () => {} },
-  { label: 'Change Password', icon: 'lock-closed-outline', onPress: () => {} },
-  { label: 'Settings', icon: 'settings-outline', onPress: () => {} },
-  { label: 'Invite a friend', icon: 'person-add-outline', onPress: () => {} },
-];
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const response = await AuthService.getProfile();
+        if (response.success && response.user) {
+          setUser(response.user);
+        } else {
+          Alert.alert('Error', response.message || 'Failed to fetch profile');
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to fetch profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
 
-const ProfileScreen = ({ navigation }: any) => (
-  <View style={styles.container}>
-    {/* Profile Image with Edit Icon */}
-    <View style={styles.profileImageContainer}>
-      <Image source={{ uri: user.image }} style={styles.profileImage} />
-      <TouchableOpacity style={styles.editIcon}>
-        <Ionicons name="pencil" size={20} color="#1976d2" />
-      </TouchableOpacity>
-    </View>
-    {/* Name and Email */}
-    <Text style={styles.name}>{user.name}</Text>
-    <View style={styles.emailContainer}>
-      <Text style={styles.email}>{user.email}</Text>
-    </View>
-    {/* Menu Card */}
-    <View style={styles.menuCard}>
-      {menu.map((item, idx) => (
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color="#007bff" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.name}>No user data</Text>
+      </View>
+    );
+  }
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoggingOut(true);
+            try {
+              await logout();
+              // Navigation will be handled automatically by AuthContext
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Logout failed. Please try again.');
+            } finally {
+              setIsLoggingOut(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Profile Image with Edit Icon */}
+      <View style={styles.profileImageContainer}>
+        {user.image ? (
+          <Image source={{ uri: user.image }} style={styles.profileImage} />
+        ) : (
+          <Ionicons name="person-circle-outline" size={100} color="#bbb" />
+        )}
+        <TouchableOpacity style={styles.editIcon}>
+          <Ionicons name="pencil" size={20} color="#1976d2" />
+        </TouchableOpacity>
+      </View>
+      {/* Name and Email */}
+      <Text style={styles.name}>{user.name}</Text>
+      <View style={styles.emailContainer}>
+        <Text style={styles.email}>{user.email}</Text>
+      </View>
+      {/* City and Mobile */}
+      <View style={styles.infoRow}>
+        <Ionicons name="location-outline" size={18} color="#1976d2" style={{ marginRight: 6 }} />
+        <Text style={styles.infoText}>{user.city || 'N/A'}</Text>
+      </View>
+      <View style={styles.infoRow}>
+        <Ionicons name="call-outline" size={18} color="#1976d2" style={{ marginRight: 6 }} />
+        <Text style={styles.infoText}>{user.mobile || 'N/A'}</Text>
+      </View>
+      {/* Menu Card */}
+      <View style={styles.menuCard}>
+        {/* Edit Profile */}
         <TouchableOpacity
-          key={item.label}
           style={styles.menuItem}
-          onPress={item.onPress}
+          onPress={() => navigation.navigate('EditProfile')}
           activeOpacity={0.7}
         >
           <View style={styles.menuLeft}>
-            <Ionicons name={item.icon} size={22} color="#1976d2" style={styles.menuIcon} />
-            <Text style={styles.menuLabel}>{item.label}</Text>
+            <Ionicons name="pencil-outline" size={22} color="#1976d2" style={styles.menuIcon} />
+            <Text style={styles.menuLabel}>Edit Profile</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#bdbdbd" />
         </TouchableOpacity>
-      ))}
-      {/* Logout */}
-      <TouchableOpacity style={styles.menuItem} onPress={() => {}} activeOpacity={0.7}>
-        <View style={styles.menuLeft}>
-          <Ionicons name="log-out-outline" size={22} color="#e53935" style={styles.menuIcon} />
-          <Text style={[styles.menuLabel, { color: '#e53935' }]}>Logout</Text>
-        </View>
-      </TouchableOpacity>
+        {/* Change Password */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('ChangePassword')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuLeft}>
+            <Ionicons name="lock-closed-outline" size={22} color="#1976d2" style={styles.menuIcon} />
+            <Text style={styles.menuLabel}>Change Password</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdbdbd" />
+        </TouchableOpacity>
+        {/* Settings */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('Settings')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuLeft}>
+            <Ionicons name="settings-outline" size={22} color="#1976d2" style={styles.menuIcon} />
+            <Text style={styles.menuLabel}>Settings</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdbdbd" />
+        </TouchableOpacity>
+        {/* Invite a friend */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => Alert.alert('Invite a friend', 'This feature is coming soon!')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuLeft}>
+            <Ionicons name="person-add-outline" size={22} color="#1976d2" style={styles.menuIcon} />
+            <Text style={styles.menuLabel}>Invite a friend</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdbdbd" />
+        </TouchableOpacity>
+        {/* Logout */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+          disabled={isLoggingOut}
+        >
+          <View style={styles.menuLeft}>
+            <Ionicons name="log-out-outline" size={22} color="#e53935" style={styles.menuIcon} />
+            <Text style={[styles.menuLabel, { color: '#e53935' }]}>
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -104,6 +217,15 @@ const styles = StyleSheet.create({
     color: '#1976d2',
     fontSize: 15,
     textAlign: 'center',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 15,
+    color: '#444',
   },
   menuCard: {
     width: '90%',

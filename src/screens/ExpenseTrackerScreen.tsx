@@ -360,11 +360,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: '#fff',
+    marginTop: 30,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },
   backButton: {
-    padding: 8,
+    padding: 8, 
   },
   headerTitle: {
     fontSize: 20,

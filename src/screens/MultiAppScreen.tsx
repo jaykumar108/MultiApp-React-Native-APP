@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 20,
     backgroundColor: '#fff',
-    marginTop: 30,
+    marginTop: 0,
     marginBottom: 16,
   },
   headerTextContainer: {

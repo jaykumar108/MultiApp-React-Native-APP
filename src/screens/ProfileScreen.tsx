@@ -91,15 +91,6 @@ const ProfileScreen = ({ navigation }: any) => {
       <View style={styles.emailContainer}>
         <Text style={styles.email}>{user.email}</Text>
       </View>
-      {/* City and Mobile */}
-      <View style={styles.infoRow}>
-        <Ionicons name="location-outline" size={18} color="#1976d2" style={{ marginRight: 6 }} />
-        <Text style={styles.infoText}>{user.city || 'N/A'}</Text>
-      </View>
-      <View style={styles.infoRow}>
-        <Ionicons name="call-outline" size={18} color="#1976d2" style={{ marginRight: 6 }} />
-        <Text style={styles.infoText}>{user.mobile || 'N/A'}</Text>
-      </View>
       {/* Menu Card */}
       <View style={styles.menuCard}>
         {/* Edit Profile */}
@@ -174,7 +165,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     backgroundColor: '#f7f7f7',
-    paddingTop: 90,
+    paddingTop: 30,
   },
   profileImageContainer: {
     position: 'relative',

@@ -190,7 +190,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
               <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Email address"
+                placeholder="jaysharma@mail.com"
+                placeholderTextColor="#999"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -206,7 +207,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                 <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Password"
+                  placeholder="********"
+                  placeholderTextColor="#999"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
@@ -246,7 +248,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                       <Ionicons name="key-outline" size={20} color="#666" style={styles.inputIcon} />
                       <TextInput
                         style={styles.input}
-                        placeholder="Enter OTP"
+                        placeholder="Enter 6-digit OTP code"
+                        placeholderTextColor="#999"
                         value={otp}
                         onChangeText={setOtp}
                         keyboardType="numeric"

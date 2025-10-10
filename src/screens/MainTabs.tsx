@@ -7,6 +7,7 @@ import CalculatorScreen from './CalculatorScreen';
 import TodoScreen from './TodoScreen';
 import ExpenseTrackerScreen from './ExpenseTrackerScreen';
 import ProfileScreen from './ProfileScreen';
+import SettingsScreen from './setting/SettingsScreen';
 
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
@@ -18,6 +19,15 @@ const HomeStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MultiApp" component={MultiAppScreen} />
       <Stack.Screen name="ExpenseTracker" component={ExpenseTrackerScreen} />
+    </Stack.Navigator>
+  );
+};
+
+const ProfileStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 };
@@ -46,7 +56,7 @@ const MainTabs = () => {
       <Tab.Screen name="AI" component={AIChatScreen} />
       <Tab.Screen name="Calculator" component={CalculatorScreen} />
 
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileStack} />
     </Tab.Navigator>
   );
 };

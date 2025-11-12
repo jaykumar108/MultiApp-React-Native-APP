@@ -6,7 +6,7 @@ import { Todo } from '../services/TodoService';
 interface TodoItemProps {
   todo: Todo;
   onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
+  onDelete: (todo: Todo) => void;
   onEdit?: (todo: Todo) => void;
 }
 
@@ -142,7 +142,7 @@ const TodoItem: React.FC<TodoItemProps> = ({ todo, onToggle, onDelete, onEdit })
         
         <TouchableOpacity 
           style={styles.deleteButton}
-          onPress={() => onDelete(todo._id!)}
+          onPress={() => onDelete(todo)}
         >
           <Ionicons name="trash-outline" size={18} color="#ff4757" />
         </TouchableOpacity>

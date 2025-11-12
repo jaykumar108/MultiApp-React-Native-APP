@@ -17,6 +17,8 @@ import TodoService, { Todo, TodoFilters, TodoStats } from '../services/TodoServi
 import TodoForm from '../components/TodoForm';
 import TodoItem from '../components/TodoItem';
 import TodoFiltersComponent from '../components/TodoFilters';
+import DeleteDialogModal from '../components/ui/deleteDialogModal';
+import { showSuccessToast, showErrorToast } from '../components/ui/ToastManager';
 import { useAuth } from '../context/AuthContext';
 
 const TodoScreen = ({ navigation }: any) => {
@@ -27,6 +29,9 @@ const TodoScreen = ({ navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [filters, setFilters] = useState<TodoFilters>({
     page: 1,
     limit: 10,
@@ -88,11 +93,11 @@ const TodoScreen = ({ navigation }: any) => {
           setHasMore(todoData.length === filters.limit);
         }
       } else {
-        Alert.alert('Error', response.message || 'Failed to load todos');
+        showErrorToast(response.message || 'Failed to load todos');
       }
     } catch (error: any) {
       console.error('Error loading todos:', error);
-      Alert.alert('Error', error.message || 'Failed to load todos');
+      showErrorToast(error.message || 'Failed to load todos');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -154,12 +159,12 @@ const TodoScreen = ({ navigation }: any) => {
         setModalVisible(false);
         loadTodos(true); // Refresh the list
         loadStats(); // Refresh stats
-        Alert.alert('Success', 'Task created successfully!');
+        showSuccessToast('Task created successfully!');
       } else {
-        Alert.alert('Error', response.message || 'Failed to create task');
+        showErrorToast(response.message || 'Failed to create task');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to create task');
+      showErrorToast(error.message || 'Failed to create task');
     }
   };
 
@@ -174,12 +179,12 @@ const TodoScreen = ({ navigation }: any) => {
         setEditingTodo(null);
         loadTodos(true); // Refresh the list
         loadStats(); // Refresh stats
-        Alert.alert('Success', 'Task updated successfully!');
+        showSuccessToast('Task updated successfully!');
       } else {
-        Alert.alert('Error', response.message || 'Failed to update task');
+        showErrorToast(response.message || 'Failed to update task');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update task');
+      showErrorToast(error.message || 'Failed to update task');
     }
   };
 
@@ -198,40 +203,47 @@ const TodoScreen = ({ navigation }: any) => {
         );
         loadStats(); // Refresh stats
       } else {
-        Alert.alert('Error', response.message || 'Failed to update task');
+        showErrorToast(response.message || 'Failed to update task');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update task');
+      showErrorToast(error.message || 'Failed to update task');
     }
   };
 
   // Delete todo
-  const handleDeleteTodo = async (id: string) => {
-    Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await TodoService.deleteTodo(id);
-              if (response.success) {
-                setTodos(prev => prev.filter(todo => todo._id !== id));
-                loadStats(); // Refresh stats
-                Alert.alert('Success', 'Task deleted successfully!');
-              } else {
-                Alert.alert('Error', response.message || 'Failed to delete task');
-              }
-            } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete task');
-            }
-          }
-        },
-      ]
-    );
+  const handleDeleteTodo = (todo: Todo) => {
+    setTodoToDelete(todo);
+    setDeleteModalVisible(true);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (!todoToDelete?._id) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await TodoService.deleteTodo(todoToDelete._id);
+      if (response.success) {
+        setTodos(prev => prev.filter(todo => todo._id !== todoToDelete._id));
+        loadStats(); // Refresh stats
+        showSuccessToast('Task deleted successfully!');
+        setDeleteModalVisible(false);
+        setTodoToDelete(null);
+      } else {
+        showErrorToast(response.message || 'Failed to delete task');
+      }
+    } catch (error: any) {
+      showErrorToast(error.message || 'Failed to delete task');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Handle delete modal close
+  const handleDeleteModalClose = () => {
+    setDeleteModalVisible(false);
+    setTodoToDelete(null);
+    setIsDeleting(false);
   };
 
   // Edit todo
@@ -383,6 +395,17 @@ const TodoScreen = ({ navigation }: any) => {
           onSubmit={editingTodo ? handleUpdateTodo : handleCreateTodo}
           initialData={editingTodo || undefined}
           isEditing={!!editingTodo}
+        />
+
+        {/* Delete Confirmation Modal */}
+        <DeleteDialogModal
+          visible={deleteModalVisible}
+          onClose={handleDeleteModalClose}
+          onConfirm={handleDeleteConfirm}
+          title="Delete Task"
+          itemName={todoToDelete?.title}
+          isLoading={isDeleting}
+          type="todo"
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

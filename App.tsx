@@ -20,6 +20,7 @@ import CalculatorScreen from './src/screens/CalculatorScreen';
 import MainTabs from './src/screens/MainTabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import ToastManager from './src/components/ui/ToastManager';
 
 const Stack = createNativeStackNavigator();
 
@@ -57,7 +58,9 @@ function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <AppContent />
+        <ToastManager>
+          <AppContent />
+        </ToastManager>
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -158,7 +158,8 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
               <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Full Name"
+                placeholder="Enter your full name"
+                placeholderTextColor="#999"
                 value={formData.name}
                 onChangeText={(value) => updateFormData('name', value)}
                 autoCapitalize="words"
@@ -171,7 +172,8 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
               <Ionicons name="location-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="City"
+                placeholder="Enter your city name"
+                placeholderTextColor="#999"
                 value={formData.city}
                 onChangeText={(value) => updateFormData('city', value)}
                 autoCapitalize="words"
@@ -184,7 +186,8 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
               <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Mobile Number"
+                placeholder="Enter your mobile number"
+                placeholderTextColor="#999"
                 value={formData.mobile}
                 onChangeText={(value) => updateFormData('mobile', value)}
                 keyboardType="numeric"
@@ -197,7 +200,8 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
               <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Email Address"
+                placeholder="Email your address"
+                placeholderTextColor="#999"
                 value={formData.email}
                 onChangeText={(value) => updateFormData('email', value)}
                 keyboardType="email-address"
@@ -211,7 +215,8 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
               <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder="********"
+                placeholderTextColor="#999"
                 value={formData.password}
                 onChangeText={(value) => updateFormData('password', value)}
                 secureTextEntry={!showPassword}
@@ -234,7 +239,8 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
               <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Confirm Password"
+                placeholder="********"
+                placeholderTextColor="#999"
                 value={formData.confirmPassword}
                 onChangeText={(value) => updateFormData('confirmPassword', value)}
                 secureTextEntry={!showConfirmPassword}

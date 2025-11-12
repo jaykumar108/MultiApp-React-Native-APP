@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator } from 'react-native';
+import { StatusBar, StyleSheet, useColorScheme, View, ActivityIndicator, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import GetStartedScreen from './src/screens/GetStartedScreen';
@@ -18,7 +18,7 @@ import ExpenseTrackerScreen from './src/screens/ExpenseTrackerScreen';
 import AIChatScreen from './src/screens/AIChatScreen';
 import CalculatorScreen from './src/screens/CalculatorScreen';
 import MainTabs from './src/screens/MainTabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import ToastManager from './src/components/ui/ToastManager';
 
@@ -27,30 +27,52 @@ const Stack = createNativeStackNavigator();
 const AppContent = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const isDarkMode = useColorScheme() === 'dark';
+  const insets = useSafeAreaInsets();
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView 
+        style={[
+          styles.loadingContainer,
+          isDarkMode && styles.darkLoadingContainer
+        ]} 
+        edges={['top', 'bottom']}
+      >
         <ActivityIndicator size="large" color="#007bff" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
+    <SafeAreaView 
+      style={[
+        styles.container,
+        isDarkMode && styles.darkContainer
+      ]} 
+      edges={['top']}
+    >
+      <StatusBar 
+        backgroundColor={Platform.OS === 'android' 
+          ? (isDarkMode ? '#fff' : 'transparent')
+          : (isDarkMode ? '#fff' : '#fff')
+        } 
+        barStyle={isDarkMode ? 'dark-content' : 'dark-content'} 
+        translucent={Platform.OS === 'android' && !isDarkMode}
+      />
       <NavigationContainer>
-        <StatusBar backgroundColor="#fff" barStyle="dark-content" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated ? (
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-        ) : (
-          <>
-            <Stack.Screen name="GetStarted" component={GetStartedScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-          </>
-        )}
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {isAuthenticated ? (
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+          ) : (
+            <>
+              <Stack.Screen name="GetStarted" component={GetStartedScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Signup" component={SignupScreen} />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
+    </SafeAreaView>
   );
 };
 
@@ -69,11 +91,18 @@ function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'transparent',
+  },
+  darkContainer: {
+    backgroundColor: '#fff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  darkLoadingContainer: {
     backgroundColor: '#fff',
   },
 });

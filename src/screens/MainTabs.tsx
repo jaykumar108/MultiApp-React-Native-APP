@@ -28,6 +28,7 @@ const ProfileStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Profile" component={ProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="ExpenseTracker" component={ExpenseTrackerScreen} />
     </Stack.Navigator>
   );
 };

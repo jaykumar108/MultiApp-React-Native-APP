@@ -129,6 +129,18 @@ const ProfileScreen = ({ navigation }: any) => {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#bdbdbd" />
         </TouchableOpacity>
+        {/* Expenses */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigation.navigate('ExpenseTracker')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuLeft}>
+            <Ionicons name="wallet-outline" size={22} color="#1976d2" style={styles.menuIcon} />
+            <Text style={styles.menuLabel}>Expenses</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#bdbdbd" />
+        </TouchableOpacity>
         {/* Invite a friend */}
         <TouchableOpacity
           style={styles.menuItem}
